@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -162,8 +163,20 @@ func (api *APIHandler) SubscribeTopic(topic string, handler func([]byte)) error 
 	return api.Connection.SubscribeTopic(topic, handler)
 }
 
+func (api *APIHandler) SubscribeAuthTopic(topic string, privateKey *ecdsa.PrivateKey, handler func([]byte)) error {
+	return api.Connection.SubscribeAuthTopic(topic, privateKey, handler)
+}
+
+func (api *APIHandler) PublishAuthTopic(topic string, publicKey []*ecdsa.PublicKey, handler func([]byte)) error {
+	return api.Connection.PublishAuthTopic(topic, publicKey, handler)
+}
+
 func (api *APIHandler) UnsubscribeTopic(topic string) error {
 	return api.Connection.UnsubscribeTopic(topic)
+}
+
+func (api *APIHandler) UnsubscribeAuthTopic(topic string) error {
+	return api.Connection.UnsubscribeAuthTopic(topic)
 }
 
 func (api *APIHandler) PushTopicDataRandom(topic string, data []byte) error {

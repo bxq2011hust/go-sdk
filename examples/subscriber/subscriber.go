@@ -5,13 +5,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/FISCO-BCOS/go-sdk/client"
 	"github.com/FISCO-BCOS/go-sdk/conf"
-)
-
-const (
-	topic1 = "subscribe"
 )
 
 var (
@@ -34,12 +31,27 @@ func onPush(data []byte) {
 }
 
 func main() {
-	err := c.SubscribeTopic(topic1, onPush)
+	if len(os.Args) != 2 {
+		log.Fatal("the number of arguments is not equal 1")
+	}
+	topic := os.Args[1]
+
+	fmt.Println("3s...")
+	time.Sleep(1 * time.Second)
+	fmt.Println("2s...")
+	time.Sleep(1 * time.Second)
+	fmt.Println("1s...")
+	time.Sleep(1 * time.Second)
+
+	fmt.Println("start test")
+	fmt.Println("===================================================================")
+
+	err := c.SubscribeTopic(topic, onPush)
 	if err != nil {
-		fmt.Printf("subscribe topic failed, err: %v\n", err)
+		fmt.Printf("subscriber topic failed, err: %v\n", err)
 		return
 	}
-	fmt.Println("subscribe success")
+	fmt.Println("subscriber success")
 
 	killSignal := make(chan os.Signal, 1)
 	signal.Notify(killSignal, os.Interrupt)

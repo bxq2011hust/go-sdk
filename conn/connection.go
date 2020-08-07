@@ -19,6 +19,7 @@ package conn
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -311,9 +312,24 @@ func (c *Connection) SubscribeTopic(topic string, handler func([]byte)) error {
 	return hc.subscribeTopic(topic, handler)
 }
 
+func (c *Connection) SubscribeAuthTopic(topic string, privateKey *ecdsa.PrivateKey, handler func([]byte)) error {
+	hc := c.writeConn.(*channelSession)
+	return hc.subscribeAuthTopic(topic, privateKey, handler)
+}
+
+func (c *Connection) PublishAuthTopic(topic string, publicKey []*ecdsa.PublicKey, handler func([]byte)) error {
+	hc := c.writeConn.(*channelSession)
+	return hc.publishAuthTopic(topic, publicKey, handler)
+}
+
 func (c *Connection) UnsubscribeTopic(topic string) error {
 	hc := c.writeConn.(*channelSession)
 	return hc.unsubscribeTopic(topic)
+}
+
+func (c *Connection) UnsubscribeAuthTopic(topic string) error {
+	hc := c.writeConn.(*channelSession)
+	return hc.unsubscribeAuthTopic(topic)
 }
 
 func (c *Connection) PushTopicDataRandom(topic string, data []byte) error {
