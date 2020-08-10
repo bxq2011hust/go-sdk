@@ -26,23 +26,19 @@ var (
 	c *client.Client
 )
 
-func init() {
-	configs, err := conf.ParseConfigFile("config.toml")
-	if err != nil {
-		log.Fatalf("parse configuration failed, err: %v\n", err)
+func main() {
+	if len(os.Args) != 3 {
+		log.Fatal("the number of arguments is not equal 1")
 	}
-	c, err = client.Dial(&configs[0])
+	endpoint := os.Args[1]
+	topic := os.Args[2]
+	config := &conf.Config{IsHTTP: false, ChainID: 1, CAFile: "ca.crt", Key: "sdk.key", Cert: "sdk.crt", IsSMCrypto: false, GroupID: 1,
+		PrivateKey: "145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58",
+		NodeURL:    endpoint}
+	c, err := client.Dial(config)
 	if err != nil {
 		log.Fatalf("init client failed, err: %v\n", err)
 	}
-}
-
-func main() {
-	//if len(os.Args) != 2 {
-	//	log.Fatal("the number of arguments is not equal 1")
-	//}
-	//topic := os.Args[1]
-	topic := "hello"
 
 	privateKey, err := crypto.HexToECDSA(privateKey1)
 	if err != nil {

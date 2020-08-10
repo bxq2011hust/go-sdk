@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/keycard-go/hexutils"
@@ -18,19 +19,8 @@ var (
 	c *client.Client
 )
 
-func init() {
-	configs, err := conf.ParseConfigFile("config.toml")
-	if err != nil {
-		log.Fatalf("parse configuration failed, err: %v\n", err)
-	}
-	c, err = client.Dial(&configs[0])
-	if err != nil {
-		log.Fatalf("init client failed, err: %v\n", err)
-	}
-}
-
 func onPush(data []byte) {
-	fmt.Println("\n\n" + string(data))
+	fmt.Printf("received:%s\n", string(data))
 }
 
 const (
@@ -40,18 +30,18 @@ const (
 )
 
 func main() {
-	//if len(os.Args) != 3 {
-	//	log.Fatal("the number of arguments is not equal 2")
-	//}
-	//topic := os.Args[1]
-	//count, err := strconv.Atoi(os.Args[2])
-	//if err != nil {
-	//	log.Fatal("the second parameter is not a number")
-	//}
-
-	topic := "hello"
-	//count := 5
-
+	if len(os.Args) < 3 {
+		log.Fatal("the number of arguments is not equal 4")
+	}
+	endpoint := os.Args[1]
+	topic := os.Args[2]
+	config := &conf.Config{IsHTTP: false, ChainID: 1, CAFile: "ca.crt", Key: "sdk.key", Cert: "sdk.crt", IsSMCrypto: false, GroupID: 1,
+		PrivateKey: "145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58",
+		NodeURL:    endpoint}
+	c, err := client.Dial(config)
+	if err != nil {
+		log.Fatalf("init client failed, err: %v\n", err)
+	}
 	publicKeys := make([]*ecdsa.PublicKey, 0)
 	pubKey1, err := crypto.UnmarshalPubkey(hexutils.HexToBytes("04" + publicKey1))
 	pubKey2, err := crypto.UnmarshalPubkey(hexutils.HexToBytes("04" + publicKey2))
@@ -66,15 +56,19 @@ func main() {
 		return
 	}
 	fmt.Println("publish topic success")
-
-	//for i := 0; i < count; i++ {
-	//	time.Sleep(3 * time.Second)
-	//	message := "hello, FISCO BCOS, I am unicast client!"
-	//	err = c.PushTopicDataRandom(topic, []byte(message))
-	//	if err != nil {
-	//		log.Fatalf("PushTopicDataRandom failed, err: %v\n", err)
-	//	}
-	//}
+	time.Sleep(10 * time.Second)
+	go func() {
+		for i := 0; i < 1000; i++ {
+			message := "Hi, FISCO BCOS!"
+			fmt.Printf("%4d publish message:%s\n", i, message)
+			err = c.PushAuthTopicDataRandom(topic, []byte(message))
+			// err = c.PushAuthTopicDataToALL(topic, []byte(message))
+			if err != nil {
+				log.Fatalf("PushTopicDataRandom failed, err: %v\n", err)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
 
 	killSignal := make(chan os.Signal, 1)
 	signal.Notify(killSignal, os.Interrupt)

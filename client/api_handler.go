@@ -187,6 +187,14 @@ func (api *APIHandler) PushTopicDataToALL(topic string, data []byte) error {
 	return api.Connection.PushTopicDataToALL(topic, data)
 }
 
+func (api *APIHandler) PushAuthTopicDataRandom(topic string, data []byte) error {
+	return api.Connection.PushAuthTopicDataRandom(topic, data)
+}
+
+func (api *APIHandler) PushAuthTopicDataToALL(topic string, data []byte) error {
+	return api.Connection.PushAuthTopicDataToALL(topic, data)
+}
+
 // GetClientVersion returns the version of FISCO BCOS running on the nodes.
 func (api *APIHandler) GetClientVersion(ctx context.Context) ([]byte, error) {
 	var raw interface{}
