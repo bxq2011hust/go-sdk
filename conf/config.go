@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -14,22 +13,18 @@ import (
 
 // Config contains configuration items for sdk
 type Config struct {
-	IsHTTP         bool
-	ChainID        int64
-	CAFile         string
-	TLSCAContext   []byte
-	Key            string
-	TLSKeyContext  []byte
-	Cert           string
-	TLSCertContext []byte
-	IsSMCrypto     bool
-	PrivateKey     []byte
-	GroupID        int
-	NodeURL        string
+	TLSCAContext    []byte
+	TLSKeyContext   []byte
+	TLSCertContext  []byte
+	PrivateKey      []byte
+	NodesURL        []string
+	PrivateKeyCurve string
+	Group           string
+	SMCrypto        bool
 }
 
 // ParseConfigFile parses the configuration from toml config file
-func ParseConfigFile(cfgFile string) ([]Config, error) {
+func ParseConfigFile(cfgFile string) (*Config, error) {
 	file, err := os.Open(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("open file failed, err: %v", err)
@@ -58,7 +53,7 @@ func ParseConfigFile(cfgFile string) ([]Config, error) {
 }
 
 // ParseConfig parses the configuration from []byte
-func ParseConfig(buffer []byte) ([]Config, error) {
+func ParseConfig(buffer []byte) (*Config, error) {
 	viper.SetConfigType("toml")
 	viper.SetDefault("SMCrypto", false)
 	viper.SetDefault("Network.Type", "rpc")
@@ -73,16 +68,14 @@ func ParseConfig(buffer []byte) ([]Config, error) {
 		return nil, fmt.Errorf("viper .ReadConfig failed, err: %v", err)
 	}
 	config := new(Config)
-	var configs []Config
-
 	if viper.IsSet("Chain") {
-		if viper.IsSet("Chain.ChainID") {
-			config.ChainID = int64(viper.GetInt("Chain.ChainID"))
+		if viper.IsSet("Chain.Group") {
+			config.Group = viper.GetString("Chain.Group")
 		} else {
-			return nil, fmt.Errorf("Chain.ChainID has not been set")
+			return nil, fmt.Errorf("Chain.Group has not been set")
 		}
 		if viper.IsSet("Chain.SMCrypto") {
-			config.IsSMCrypto = viper.GetBool("Chain.SMCrypto")
+			config.SMCrypto = viper.GetBool("Chain.SMCrypto")
 		} else {
 			return nil, fmt.Errorf("SMCrypto has not been set")
 		}
@@ -90,81 +83,64 @@ func ParseConfig(buffer []byte) ([]Config, error) {
 		return nil, fmt.Errorf("chain has not been set")
 	}
 	if viper.IsSet("Account") {
-		accountKeyFile := viper.GetString("Account.KeyFile")
+		accountKeyFile := viper.GetString("Account.PrivateKeyFile")
 		keyBytes, curve, err := LoadECPrivateKeyFromPEM(accountKeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("parse private key failed, err: %v", err)
 		}
-		if config.IsSMCrypto && curve != sm2p256v1 {
+		if config.SMCrypto && curve != sm2p256v1 {
 			return nil, fmt.Errorf("smcrypto must use sm2p256v1 private key, but found %s", curve)
 		}
-		if !config.IsSMCrypto && curve != secp256k1 {
+		if !config.SMCrypto && curve != secp256k1 {
 			return nil, fmt.Errorf("must use secp256k1 private key, but found %s", curve)
 		}
 		config.PrivateKey = keyBytes
+		config.PrivateKeyCurve = curve
 	} else {
 		return nil, fmt.Errorf("network has not been set")
 	}
 	if viper.IsSet("Network") {
-		connectionType := viper.GetString("Network.Type")
-		if strings.EqualFold(connectionType, "rpc") {
-			config.IsHTTP = true
-		} else if strings.EqualFold(connectionType, "channel") {
-			config.IsHTTP = false
-		} else {
-			logrus.Printf("Network.Type %s is not supported, use channel", connectionType)
-		}
-		config.CAFile = viper.GetString("Network.CAFile")
-		config.Key = viper.GetString("Network.Key")
-		config.Cert = viper.GetString("Network.Cert")
+		CAFile := viper.GetString("Network.CAFile")
+		KeyFile := viper.GetString("Network.Key")
+		CertFile := viper.GetString("Network.Cert")
 		config.TLSCAContext = []byte(viper.GetString("Network.CAContext"))
 		config.TLSKeyContext = []byte(viper.GetString("Network.KeyContext"))
 		config.TLSCertContext = []byte(viper.GetString("Network.CertContext"))
 		if len(config.TLSCAContext) == 0 {
-			config.TLSCAContext, err = ioutil.ReadFile(config.CAFile)
+			config.TLSCAContext, err = ioutil.ReadFile(CAFile)
 			if err != nil {
 				panic(err)
 			}
 		}
 		if len(config.TLSKeyContext) == 0 {
-			config.TLSKeyContext, err = ioutil.ReadFile(config.Key)
+			config.TLSKeyContext, err = ioutil.ReadFile(KeyFile)
 			if err != nil {
 				panic(err)
 			}
 		}
 		if len(config.TLSCertContext) == 0 {
-			config.TLSCertContext, err = ioutil.ReadFile(config.Cert)
+			config.TLSCertContext, err = ioutil.ReadFile(CertFile)
 			if err != nil {
 				panic(err)
 			}
 		}
-		var connections []struct {
-			GroupID int
-			NodeURL string
-		}
-		if viper.IsSet("Network.Connection") {
-			err := viper.UnmarshalKey("Network.Connection", &connections)
+		if viper.IsSet("Network.NodesURL") {
+			err := viper.UnmarshalKey("Network.NodesURL", &config.NodesURL)
 			if err != nil {
 				return nil, fmt.Errorf("parse Network.Connection failed. err: %v", err)
 			}
-			for i := range connections {
-				configs = append(configs, *config)
-				configs[i].GroupID = connections[i].GroupID
-				configs[i].NodeURL = connections[i].NodeURL
-			}
 		} else {
-			return nil, fmt.Errorf("Network.Connection has not been set")
+			return nil, fmt.Errorf("Network.NodesURL has not been set")
 		}
 	} else {
 		return nil, fmt.Errorf("network has not been set")
 	}
-	return configs, nil
+	return config, nil
 }
 
 // ParseConfigOptions parses from arguments
 func ParseConfigOptions(caFile string, key string, cert, keyFile string, groupId int, ipPort string, isHttp bool, chainId int64, isSMCrypto bool) (*Config, error) {
 	config := Config{
-		IsHTTP:     isHttp,
 		ChainID:    chainId,
 		CAFile:     caFile,
 		Key:        key,
@@ -173,16 +149,7 @@ func ParseConfigOptions(caFile string, key string, cert, keyFile string, groupId
 		GroupID:    groupId,
 		NodeURL:    ipPort,
 	}
-	keyBytes, curve, err := LoadECPrivateKeyFromPEM(keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("parse private key failed, err: %v", err)
-	}
-	if config.IsSMCrypto && curve != sm2p256v1 {
-		return nil, fmt.Errorf("smcrypto must use sm2p256v1 private key, but found %s", curve)
-	}
-	if !config.IsSMCrypto && curve != secp256k1 {
-		return nil, fmt.Errorf("must use secp256k1 private key, but found %s", curve)
-	}
+
 	config.PrivateKey = keyBytes
 	return &config, nil
 }

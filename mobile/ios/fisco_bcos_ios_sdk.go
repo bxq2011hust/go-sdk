@@ -22,7 +22,6 @@ import (
 )
 
 type BcosSDK struct {
-	config   *conf.Config
 	backend  *ContractProxy
 	auth     *bind.TransactOpts
 	callOpts *bind.CallOpts
@@ -117,18 +116,23 @@ type NetworkResponse struct {
 // Please provider full keyFile path
 func (sdk *BcosSDK) BuildSDKWithParam(keyFile string, callback PostCallback, groupID int, chainID int64, isSMCrypto bool) *BuildSDKResult {
 	// init config and callback
-	config, err := conf.ParseConfigOptions("", "", "", keyFile, groupID, "", true, chainID, isSMCrypto)
+	keyBytes, curve, err := conf.LoadECPrivateKeyFromPEM(keyFile)
 	if err != nil {
 		return &BuildSDKResult{false, err.Error()}
 	}
-	sdk.config = config
+	if isSMCrypto && curve != conf.Sm2p256v1 {
+		return &BuildSDKResult{false, fmt.Sprintf("smcrypto must use sm2p256v1 private key, but found %s", curve)}
+	}
+	if !isSMCrypto && curve != conf.Secp256k1 {
+		return &BuildSDKResult{false, fmt.Sprintf("must use secp256k1 private key, but found %s", curve)}
+	}
 
 	// Init transact auth and
-	sdk.auth = bind.NewSMCryptoTransactor(sdk.config.PrivateKey)
-	if config.IsSMCrypto {
-		sdk.auth = bind.NewSMCryptoTransactor(config.PrivateKey)
+	sdk.auth = bind.NewSMCryptoTransactor(keyBytes)
+	if isSMCrypto {
+		sdk.auth = bind.NewSMCryptoTransactor(keyBytes)
 	} else {
-		privateKey, err := crypto.ToECDSA(config.PrivateKey)
+		privateKey, err := crypto.ToECDSA(keyBytes)
 		if err != nil {
 			return &BuildSDKResult{false, err.Error()}
 		}

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	secp256k1 = "secp256k1"
-	sm2p256v1 = "sm2p256v1"
+	Secp256k1 = "secp256k1"
+	Sm2p256v1 = "sm2p256v1"
 )
 
 var (
@@ -51,13 +51,17 @@ func LoadECPublicKeyFromPEM(path string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	return LoadECPublicKeyFromBytes(raw)
+}
 
-	block, _ := pem.Decode(raw)
+// LoadECPublicKeyFromPEM reads file, divides into key and certificates
+func LoadECPublicKeyFromBytes(bytes []byte) ([]byte, string, error) {
+	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, "", fmt.Errorf("Failure reading pem from \"%s\": %s", path, err)
+		return nil, "", fmt.Errorf("Failure Decode pem %v", bytes)
 	}
 	if block.Type != "PUBLIC KEY" {
-		return nil, "", fmt.Errorf("Failure reading private key from \"%s\": %s", path, err)
+		return nil, "", fmt.Errorf("Failure Decode pem %v", bytes)
 	}
 	return parsePKIXPublicKey(block.Bytes)
 }
