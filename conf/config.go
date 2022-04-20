@@ -88,10 +88,10 @@ func ParseConfig(buffer []byte) (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parse private key failed, err: %v", err)
 		}
-		if config.SMCrypto && curve != sm2p256v1 {
+		if config.SMCrypto && curve != Sm2p256v1 {
 			return nil, fmt.Errorf("smcrypto must use sm2p256v1 private key, but found %s", curve)
 		}
-		if !config.SMCrypto && curve != secp256k1 {
+		if !config.SMCrypto && curve != Secp256k1 {
 			return nil, fmt.Errorf("must use secp256k1 private key, but found %s", curve)
 		}
 		config.PrivateKey = keyBytes
@@ -136,20 +136,4 @@ func ParseConfig(buffer []byte) (*Config, error) {
 		return nil, fmt.Errorf("network has not been set")
 	}
 	return config, nil
-}
-
-// ParseConfigOptions parses from arguments
-func ParseConfigOptions(caFile string, key string, cert, keyFile string, groupId int, ipPort string, isHttp bool, chainId int64, isSMCrypto bool) (*Config, error) {
-	config := Config{
-		ChainID:    chainId,
-		CAFile:     caFile,
-		Key:        key,
-		Cert:       cert,
-		IsSMCrypto: isSMCrypto,
-		GroupID:    groupId,
-		NodeURL:    ipPort,
-	}
-
-	config.PrivateKey = keyBytes
-	return &config, nil
 }
